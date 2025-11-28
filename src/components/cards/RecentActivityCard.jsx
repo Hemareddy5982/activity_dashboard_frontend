@@ -2,115 +2,147 @@
 import React from "react";
 
 const RecentActivityCard = ({ activities, loading }) => {
-  if (loading) return <div>Loading recent activities...</div>;
+  if (loading)
+    return <div style={{ color: "#9CA3AF" }}>Loading recent activities...</div>;
+
   if (!activities || activities.length === 0)
-    return <div>No recent activities found.</div>;
+    return <div style={{ color: "#9CA3AF" }}>No recent activities found.</div>;
 
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.05)",
-        backdropFilter: "blur(10px)",
-        borderRadius: "12px",
-        border: "1px solid rgba(255,255,255,0.1)"
+        background: "rgba(255,255,255,0.06)", // glass card
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderRadius: "14px",
+        border: "1px solid rgba(255,255,255,0.12)",
+        padding: "1.8rem",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.35)",
       }}
     >
-      <div style={{
-        padding: "2rem 2rem 1.5rem 2rem"
-      }}>
-        <h3 style={{
-          marginBottom: "1.5rem",
-          color: "#2c3e50",
-          fontSize: "1.8rem",
+      {/* HEADER */}
+      <h3
+        style={{
+          marginBottom: "1.4rem",
+          color: "#E5E7EB",
+          fontSize: "1.35rem",
           fontWeight: "600",
           display: "flex",
           alignItems: "center",
-          gap: "0.5rem"
-        }}>
-          📋 Recent Activities
-          <span style={{
-            fontSize: "0.8rem",
-            opacity: "0.6",
-            fontWeight: "normal",
-            background: "#f1f2f6",
-            padding: "0.2rem 0.8rem",
-            borderRadius: "20px",
-            color: "#666"
-          }}>
-            Latest {activities?.length || 0}
-          </span>
-        </h3>
+          gap: "0.5rem",
+        }}
+      >
+        📋 Recent Activities
 
-        <div style={{
-          display: "grid",
-          gap: "1rem"
-        }}>
-          {activities.map((act, idx) => (
+        <span
+          style={{
+            fontSize: "0.75rem",
+            opacity: "0.8",
+            fontWeight: "500",
+            background: "rgba(255,255,255,0.12)",
+            padding: "0.25rem 0.8rem",
+            borderRadius: "20px",
+            color: "#E5E7EB",
+            border: "1px solid rgba(255,255,255,0.18)",
+          }}
+        >
+          Latest {activities?.length || 0}
+        </span>
+      </h3>
+
+      {/* LIST */}
+      <div style={{ display: "grid", gap: "0.9rem" }}>
+        {activities.map((act, idx) => (
+          <div
+            key={idx}
+            style={{
+              background: "rgba(24, 26, 31, 0.6)", // glassy dark card
+              borderRadius: "10px",
+              padding: "1rem",
+              border: "1px solid rgba(255,255,255,0.10)",
+              boxShadow: "0 2px 12px rgba(0,0,0,0.30)",
+              transition: "all 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.45)";
+              e.currentTarget.style.background = "rgba(24, 26, 31, 0.75)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.30)";
+              e.currentTarget.style.background = "rgba(24, 26, 31, 0.6)";
+            }}
+          >
             <div
-              key={idx}
               style={{
-                background: "white",
-                borderRadius: "8px",
-                padding: "1.2rem",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-                border: "1px solid #f0f0f0",
-                transition: "all 0.2s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)";
-                e.currentTarget.style.transform = "translateY(-2px)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,0.08)";
-                e.currentTarget.style.transform = "translateY(0)";
+                display: "grid",
+                gridTemplateColumns: "auto 120px 140px 1fr",
+                alignItems: "center",
+                gap: "1rem",
+                fontSize: "0.9rem",
               }}
             >
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "auto 1fr auto auto",
-                alignItems: "center",
-                gap: "1.5rem",
-                fontSize: "0.95rem"
-              }}>
-                {/* User */}
-                <div style={{ fontWeight: "600", color: "#2c3e50" }}>
-                  👤 {act.user_id || "Unknown User"}
-                </div>
+              {/* USER */}
+              <div
+                style={{
+                  fontWeight: "600",
+                  color: "#E5E7EB",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                👤 {act.user_id || "Unknown User"}
+              </div>
 
-                {/* Event Type */}
-                <div style={{
-                  padding: "0.3rem 0.8rem",
-                  background: "#e3f2fd",
-                  color: "#1976d2",
-                  borderRadius: "20px",
+              {/* EVENT TYPE BADGE */}
+              <div
+                style={{
+                  padding: "0.25rem 0.7rem",
+                  background: "rgba(123,97,255,0.25)",
+                  border: "1px solid rgba(123,97,255,0.45)",
+                  color: "#C4B5FD",
+                  borderRadius: "14px",
+                  fontSize: "0.75rem",
+                  textAlign: "center",
+                  whiteSpace: "nowrap",
+                  fontWeight: 500,
+                }}
+              >
+                {act.event_type || "Unknown"}
+              </div>
+
+              {/* TIMESTAMP */}
+              <div
+                style={{
+                  color: "#9CA3AF",
                   fontSize: "0.85rem",
-                  fontWeight: "500",
-                  textAlign: "center"
-                }}>
-                  {act.event_type || "Unknown"}
-                </div>
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {act.created_at
+                  ? new Date(act.created_at).toLocaleString()
+                  : "N/A"}
+              </div>
 
-                {/* Timestamp */}
-                <div style={{
-                  color: "#666",
-                  fontSize: "0.9rem"
-                }}>
-                  {act.created_at ? new Date(act.created_at).toLocaleString() : "N/A"}
-                </div>
-
-                {/* Details */}
-                <div style={{
-                  fontSize: "0.85rem",
-                  color: "#888"
-                }}>
-                  {act.payload ? (
-                    act.page ? `${act.page} • ${JSON.stringify(act.payload)}` : JSON.stringify(act.payload)
-                  ) : act.page || "No details"}
-                </div>
+              {/* DETAILS */}
+              <div
+                style={{
+                  fontSize: "0.83rem",
+                  color: "#A1A1AA",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {act.payload
+                  ? act.page
+                    ? `${act.page} • ${JSON.stringify(act.payload)}`
+                    : JSON.stringify(act.payload)
+                  : act.page || "No details"}
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );
