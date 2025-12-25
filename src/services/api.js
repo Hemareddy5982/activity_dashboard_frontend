@@ -24,4 +24,8 @@ export const getAnalyticsTrends = (days = 14, page = 1, limit = 20) =>
 export const getUserActivity = (userId, page = 1, limit = 20) =>
   api.get(`/activity/user/${userId}?page=${page}&limit=${limit}`);
 
+export const getMonthlyHeatmapSource = (days = 60) =>
+  api.get(`/analytics/trends?days=${days}&page=1&limit=500`);
+
+
 export default api;

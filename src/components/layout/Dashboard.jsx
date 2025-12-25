@@ -1,79 +1,138 @@
-// src/components/layout/Dashboard.jsx
 import React, { useEffect, useState } from "react";
+
 import StatsCard from "../cards/StatsCard";
 import RecentActivityCard from "../cards/RecentActivityCard";
+
 import ActivityTrendsChart from "../charts/ActivityTrendsChart";
 import ActivityTypeChart from "../charts/ActivityTypeChart";
 import DailyActivityChart from "../charts/DailyActivityChart";
+import ActivityCalendarHeatmap from "../charts/ActivityCalendarHeatmap"; // NEW
+
+import Pagination from "../common/Pagination";
+
 import {
   getDashboardOverview,
   getAnalyticsSummary,
   getAnalyticsTrends,
+  getMonthlyHeatmapSource, // NEW
 } from "../../services/api";
 
 const Dashboard = () => {
   const [overview, setOverview] = useState(null);
   const [summary, setSummary] = useState(null);
-  const [trends, setTrends] = useState({ labels: [], data: [] });
   const [activityTypes, setActivityTypes] = useState({ labels: [], data: [] });
-  const [daily, setDaily] = useState({ labels: [], data: [] });
   const [recent, setRecent] = useState([]);
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
+  // -----------------------------
+  // Trends Chart State
+  // -----------------------------
+  const [trendDays, setTrendDays] = useState(14);
+  const [trendsPage, setTrendsPage] = useState(1);
+  const trendsLimit = 7;
+  const [trendsTotalPages, setTrendsTotalPages] = useState(1);
+  const [trends, setTrends] = useState({ labels: [], data: [] });
+
+  // -----------------------------
+  // Daily Chart State
+  // -----------------------------
+  const [dailyDays, setDailyDays] = useState(14);
+  const [dailyPage, setDailyPage] = useState(1);
+  const dailyLimit = 7;
+  const [dailyTotalPages, setDailyTotalPages] = useState(1);
+  const [daily, setDaily] = useState({ labels: [], data: [] });
+
+  // -----------------------------
+  // Heatmap State (Same API)
+  // -----------------------------
+  const [heatmapRaw, setHeatmapRaw] = useState([]);
+  const [heatmapMonth, setHeatmapMonth] = useState(new Date().getMonth()); // 0-11
+  const [heatmapYear, setHeatmapYear] = useState(new Date().getFullYear());
+
+  // --------------------------------------------------------
+  // Load Overview + Summary (one-time)
+  // --------------------------------------------------------
   useEffect(() => {
-    const fetchDashboard = async () => {
+    (async () => {
       setLoading(true);
-      let overviewData = null;
-      let summaryData = null;
-      let trendsData = null;
 
-      try {
-        try {
-          const res = await getDashboardOverview();
-          overviewData = res.data;
-          setOverview(overviewData);
-          setRecent(overviewData.recent_activities || []);
-        } catch {}
+      const o = await getDashboardOverview();
+      setOverview(o.data);
+      setRecent(o.data?.recent_activities || []);
 
-        try {
-          const res = await getAnalyticsSummary();
-          summaryData = res.data;
-          setSummary(summaryData);
+      const s = await getAnalyticsSummary();
+      setSummary(s.data);
 
           setActivityTypes({
-            labels: Object.keys(summaryData.by_event_type || {}),
-            data: Object.values(summaryData.by_event_type || {}),
-          });
-        } catch {}
-
-        try {
-          const res = await getAnalyticsTrends();
-          trendsData = res.data.items;
-
-          setTrends({
-            labels: trendsData.map((i) => i.date),
-            data: trendsData.map((i) => i.count),
+        labels: Object.keys(s.data?.by_event_type || {}),
+        data: Object.values(s.data?.by_event_type || {}),
           });
 
-          setDaily({
-            labels: trendsData.map((i) => i.date),
-            data: trendsData.map((i) => i.count),
-          });
-        } catch {}
-
-        if (!overviewData && !summaryData && !trendsData) {
-          setError("Failed to load dashboard data.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboard();
+      setLoading(false);
+    })();
   }, []);
 
-  const totalActivities = summary?.total_activities || overview?.total_activities || 0;
+  // --------------------------------------------------------
+  // Load Trends (depends on page + days)
+  // --------------------------------------------------------
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+
+      const res = await getAnalyticsTrends(trendDays, trendsPage, trendsLimit);
+      const items = res.data.items;
+
+          setTrends({
+        labels: items.map((i) => i.date),
+        data: items.map((i) => i.count),
+          });
+
+      setTrendsTotalPages(Math.max(1, Math.ceil(res.data.total / trendsLimit)));
+
+      setLoading(false);
+    })();
+  }, [trendDays, trendsPage]);
+
+  // --------------------------------------------------------
+  // Load Daily Chart (depends on page + days)
+  // --------------------------------------------------------
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+
+      const res = await getAnalyticsTrends(dailyDays, dailyPage, dailyLimit);
+      const items = res.data.items;
+
+          setDaily({
+        labels: items.map((i) => i.date),
+        data: items.map((i) => i.count),
+          });
+
+      setDailyTotalPages(Math.max(1, Math.ceil(res.data.total / dailyLimit)));
+
+        setLoading(false);
+    })();
+  }, [dailyDays, dailyPage]);
+
+  // --------------------------------------------------------
+  // Load Heatmap (same API, independent)
+  // --------------------------------------------------------
+  useEffect(() => {
+    (async () => {
+      const res = await getMonthlyHeatmapSource(60); // last 60 days
+      setHeatmapRaw(res.data.items);
+    })();
+  }, []);
+
+  // Extract chosen month data
+  const heatmapMonthData = heatmapRaw.filter((i) => {
+    const d = new Date(i.date);
+    return d.getMonth() === heatmapMonth && d.getFullYear() === heatmapYear;
+  });
+
+  const totalActivities =
+    summary?.total_activities || overview?.total_activities || 0;
   const uniqueUsers = summary?.unique_users || 0;
   const activityTypesCount = summary?.by_event_type
     ? Object.keys(summary.by_event_type).length
@@ -96,74 +155,28 @@ const Dashboard = () => {
           background: "#181A1F",
           padding: "1rem 2rem",
           borderBottom: "1px solid #2A2C31",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
           position: "sticky",
           top: 0,
-          zIndex: 100,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
+          zIndex: 10,
           }}
         >
-          <div>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "1.5rem",
-                fontWeight: 600,
-                color: "#F3F4F6",
-              }}
-            >
+        <h1 style={{ margin: 0, fontSize: "1.5rem", color: "#F3F4F6" }}>
               Activity Dashboard
             </h1>
             <div style={{ fontSize: "0.8rem", color: "#9CA3AF" }}>
               Insights • Monitoring • Analytics
             </div>
-          </div>
-
-          <div
-            style={{
-              padding: "0.4rem 0.9rem",
-              borderRadius: "18px",
-              background: loading ? "#7B61FF33" : "#10B98133",
-              color: loading ? "#C4B5FD" : "#6EE7B7",
-              border: loading ? "1px solid #7B61FF55" : "1px solid #10B98155",
-              fontSize: "0.78rem",
-              fontWeight: 600,
-            }}
-          >
-            {loading ? "Loading…" : "Live"}
-          </div>
-        </div>
       </header>
 
-      {/* MAIN */}
-      <main style={{ padding: "2.5rem 3rem" }}>
-        {error && (
-          <div
-            style={{
-              background: "#7f1d1d55",
-              border: "1px solid #ef444433",
-              color: "#fca5a5",
-              padding: "1rem",
-              borderRadius: "10px",
-              marginBottom: "2rem",
-            }}
-          >
-            ⚠️ {error}
-          </div>
-        )}
-
-        {/* Stats Cards */}
+      <main style={{ padding: "2rem 3rem" }}>
+        {/* -------------------------------------------------- */}
+        {/* STATS CARDS */}
+        {/* -------------------------------------------------- */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: "0.5rem",
+            gap: "0.6rem",
             marginBottom: "2.5rem",
           }}
         >
@@ -173,7 +186,68 @@ const Dashboard = () => {
           <StatsCard title="RECENT ACTIVITY" value={recentCount} icon="🕒" color="#3B82F6" subtitle="Today" />
         </div>
 
-        {/* Charts */}
+        {/* -------------------------------------------------- */}
+        {/* HEATMAP BLOCK (NEW) */}
+        {/* -------------------------------------------------- */}
+        {/* <div
+          style={{
+            background: "#181A1F",
+            borderRadius: "12px",
+            padding: "1.5rem",
+            border: "1px solid #2A2C31",
+            marginBottom: "2.5rem",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <h3 style={{ margin: 0 }}>🔥 Monthly Activity Heatmap</h3>
+
+            <div style={{ display: "flex", gap: "0.6rem" }}>
+              <select
+                value={heatmapMonth}
+                onChange={(e) => setHeatmapMonth(Number(e.target.value))}
+                style={{
+                  padding: "6px",
+                  background: "#0E0F12",
+                  color: "white",
+                  borderRadius: "6px",
+                  border: "1px solid #2A2C31",
+                }}
+              >
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <option key={i} value={i}>
+                    {new Date(2025, i, 1).toLocaleString("en", {
+                      month: "long",
+                    })}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={heatmapYear}
+                onChange={(e) => setHeatmapYear(Number(e.target.value))}
+                style={{
+                  padding: "6px",
+                  background: "#0E0F12",
+                  color: "white",
+                  borderRadius: "6px",
+                  border: "1px solid #2A2C31",
+                }}
+              >
+                {[2024, 2025, 2026].map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <ActivityCalendarHeatmap monthData={heatmapMonthData} />
+        </div> */}
+
+        {/* -------------------------------------------------- */}
+        {/* CHARTS ROW (TRENDS + DONUT) */}
+        {/* -------------------------------------------------- */}
         <div
           style={{
             display: "grid",
@@ -182,60 +256,125 @@ const Dashboard = () => {
             marginBottom: "2rem",
           }}
         >
-          {/* Trends */}
+          {/* TRENDS */}
           <div
             style={{
               background: "#181A1F",
               borderRadius: "12px",
-              padding: "1.5rem",
               border: "1px solid #2A2C31",
+              padding: "1.5rem",
             }}
           >
-            <h3 style={{ margin: 0, fontSize: "1.2rem", marginBottom: "1rem" }}>
-              📈 Activity Trends
-            </h3>
-            <ActivityTrendsChart labels={trends.labels} data={trends.data} loading={loading} />
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <h3 style={{ margin: 0 }}>📈 Activity Trends</h3>
+              <input
+                type="number"
+                min="1"
+                max="90"
+                value={trendDays}
+                onChange={(e) => {
+                  setTrendDays(Number(e.target.value));
+                  setTrendsPage(1);
+                }}
+                style={{
+                  width: "70px",
+                  padding: "5px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  color: "white",
+                  borderRadius: "6px",
+                }}
+              />
+            </div>
+
+            <ActivityTrendsChart
+              labels={trends.labels}
+              data={trends.data}
+              loading={loading}
+            />
+
+            <Pagination
+              currentPage={trendsPage}
+              totalPages={trendsTotalPages}
+              onPageChange={setTrendsPage}
+            />
           </div>
 
-          {/* Distribution */}
+          {/* EVENT DISTRIBUTION */}
           <div
             style={{
               background: "#181A1F",
               borderRadius: "12px",
-              padding: "1.5rem",
               border: "1px solid #2A2C31",
+              padding: "1.5rem",
             }}
           >
-            <h3 style={{ margin: 0, fontSize: "1.2rem", marginBottom: "1rem" }}>
-              🥧 Event Distribution
-            </h3>
-            <ActivityTypeChart labels={activityTypes.labels} data={activityTypes.data} loading={loading} />
+            <h3 style={{ margin: 0, marginBottom: "1rem" }}>🥧 Event Distribution</h3>
+
+            <ActivityTypeChart
+              labels={activityTypes.labels}
+              data={activityTypes.data}
+            />
           </div>
         </div>
 
-        {/* Daily */}
+        {/* -------------------------------------------------- */}
+        {/* DAILY ACTIVITY */}
+        {/* -------------------------------------------------- */}
         <div
           style={{
             background: "#181A1F",
             borderRadius: "12px",
-            padding: "1.5rem",
             border: "1px solid #2A2C31",
+            padding: "1.5rem",
             marginBottom: "2rem",
           }}
         >
-          <h3 style={{ margin: 0, fontSize: "1.2rem", marginBottom: "1rem" }}>
-            📊 Daily Activity Timeline
-          </h3>
-          <DailyActivityChart labels={daily.labels} data={daily.data} loading={loading} />
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <h3 style={{ margin: 0 }}>📊 Daily Activity Timeline</h3>
+
+            <input
+              type="number"
+              min="1"
+              max="90"
+              value={dailyDays}
+              onChange={(e) => {
+                setDailyDays(Number(e.target.value));
+                setDailyPage(1);
+              }}
+              style={{
+                width: "70px",
+                padding: "5px",
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.15)",
+                color: "white",
+                borderRadius: "6px",
+              }}
+            />
+          </div>
+
+          <DailyActivityChart
+            labels={daily.labels}
+            data={daily.data}
+            loading={loading}
+          />
+
+          <Pagination
+            currentPage={dailyPage}
+            totalPages={dailyTotalPages}
+            onPageChange={setDailyPage}
+          />
         </div>
 
-        {/* Recent */}
+        {/* -------------------------------------------------- */}
+        {/* RECENT ACTIVITY */}
+        {/* -------------------------------------------------- */}
         <div
           style={{
             background: "#181A1F",
             borderRadius: "12px",
-            padding: "1.5rem",
             border: "1px solid #2A2C31",
+            padding: "1.5rem",
           }}
         >
           <RecentActivityCard activities={recent} loading={loading} />
